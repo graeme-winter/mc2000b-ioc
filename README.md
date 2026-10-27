@@ -56,7 +56,7 @@ All under `$(PREFIX)`, which is used verbatim (include the trailing `:`). Writab
 | `ONCYCLE` / `_RBV` | longout/longin % | `oncycle` | 1–50; MC1F10A only, RBV is INVALID for other blades |
 | `INTENSITY` / `_RBV` | longout/longin | `intensity` | Display brightness 1–10 |
 | `REF_OUT_FREQ_RBV` | ai Hz | `refoutfreq?` | Frequency on the REF OUTPUT BNC |
-| `EXT_FREQ_RBV` | ai Hz | `input?` | Measured frequency on EXT INPUT |
+| `EXT_FREQ_RBV` | ai Hz | `input?` | Measured frequency on EXT INPUT. Only measured while running; INVALID/DISABLE when `ENABLE_RBV` is Stop |
 | `RESTORE` | bo | `restore` | Factory defaults; setpoints re-seeded afterwards |
 | `IDN` | string | `id?` | |
 | `CONNECTED` | bi | – | |
@@ -84,6 +84,19 @@ Behaviour:
   timeouts count as lost contact.
 * `verbose=0` is forced at connect so unsolicited status text cannot
   interleave with replies.
+
+### External reference wiring
+
+Verified with a Zebra 3.3 V TTL output: Zebra → BNC → tee → 50 Ω feedthrough
+terminator → EXT INPUT, with the scope on the tee's other branch. Without
+the terminator the unterminated coax rings badly enough to be unusable.
+Check on the scope that the terminated high level stays well above the 2 V
+input threshold.
+
+Set `ENABLE=Stop`, choose `REF_IN` (EXT-INNER / EXT-OUTER for the
+precision blades, EXTERNAL otherwise), `NHARM`/`DHARM`, then `ENABLE=Run`.
+The input frequency must be within the blade's range after the N/D ratio;
+`EXT_FREQ_RBV` only reads once the chopper is running.
 
 Per the manual, blade, reference and harmonic settings can only be changed
 in standby (only frequency and phase while running); expect the unit to

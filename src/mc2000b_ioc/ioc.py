@@ -205,6 +205,11 @@ class ChopperIOC:
                 value = int(out_choices[int(value)])
             elif key in ("enable", "blade", "nharmonic", "dharmonic", "oncycle", "intensity"):
                 value = int(value)
+            if key == "input" and not values.get("enable"):
+                # The unit only measures EXT INPUT while running; in standby the
+                # reading is meaningless, so flag it rather than show 0 Hz.
+                rec.set(value, severity=alarm.INVALID_ALARM, alarm=alarm.DISABLE_ALARM)
+                continue
             rec.set(value)
 
         if not self._synced and None not in (values[k] for k in self.out if k != "oncycle"):
