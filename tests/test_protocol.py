@@ -51,3 +51,16 @@ def test_blade_tables():
     assert freq_resolution(Blade.MC1F2) == 0.01
     assert freq_resolution(Blade.MC1F10HP) == 0.1
     assert freq_resolution(Blade.MC1F30) == 1.0
+
+
+def test_prompt_inside_error_does_not_end_reply():
+    from mc2000b_ioc.protocol import reply_complete
+    partial = b"blade?\rCommand error> "
+    assert not reply_complete(partial)
+    assert reply_complete(partial + b"CMD_NOT_DEFINED\r> ")
+    assert reply_complete(b"> ")
+
+
+def test_firmware_419_error_format():
+    with pytest.raises(CommandError):
+        parse_reply("blade?", b"blade?\rCommand error> CMD_NOT_DEFINED\r> ")

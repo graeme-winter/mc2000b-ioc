@@ -53,10 +53,7 @@ class MC2000B:
         try:
             # A bare CR flushes any half-typed line and yields a fresh prompt;
             # the unit answers it with CMD_NOT_DEFINED, which we ignore.
-            try:
-                self.transact("")
-            except p.CommandError:
-                pass
+            self.resync()
             self.set("verbose", 0)
             self.idn = self.transact("id?")
             if "MC2000B" not in self.idn:
@@ -92,6 +89,7 @@ class MC2000B:
                 self._ser.reset_input_buffer()
                 self._ser.write(p.encode(command))
                 raw = self._read_to_prompt(command)
+                log.debug("%r -> %r", command, raw)
                 return p.parse_reply(command, raw)
             except p.CommandError:
                 raise
@@ -109,11 +107,36 @@ class MC2000B:
             buf += self._ser.read(max(1, self._ser.in_waiting))
         return buf
 
+    def resync(self) -> None:
+        """Send a bare CR to get back to a clean prompt."""
+        try:
+            self.transact("")
+        except p.CommandError:
+            pass
+
+    def transact_retry(self, command: str, retries: int = 1) -> str:
+        """``transact`` but resync and retry if the unit rejects the command.
+
+        The firmware occasionally answers a valid command with
+        CMD_NOT_DEFINED, apparently because it is busy (e.g. re-locking
+        after a frequency change) and drops characters. A genuinely bad
+        command is simply rejected again.
+        """
+        for attempt in range(retries + 1):
+            try:
+                return self.transact(command)
+            except p.CommandError as exc:
+                if attempt == retries:
+                    raise
+                log.warning("%s; resyncing and retrying", exc)
+                self.resync()
+        raise AssertionError("unreachable")
+
     def query(self, key: str) -> float:
-        return p.parse_number(self.transact(f"{key}?"))
+        return p.parse_number(self.transact_retry(f"{key}?"))
 
     def set(self, key: str, value: float, resolution: float = 1.0) -> None:
-        reply = self.transact(f"{key}={p.format_value(value, resolution)}")
+        reply = self.transact_retry(f"{key}={p.format_value(value, resolution)}")
         if reply:
             log.debug("unexpected payload after %s=%s: %r", key, value, reply)
 

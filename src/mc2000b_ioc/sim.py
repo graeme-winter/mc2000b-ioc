@@ -30,6 +30,9 @@ class SimulatedMC2000B:
         self.restore()
         self._line = b""
         self.log: list[str] = []
+        #: Fault injection: drop the first character of the next N commands,
+        #: mimicking the busy firmware dropping input.
+        self.garble = 0
 
     def restore(self) -> None:
         self.state = dict(freq=1000, blade=int(p.Blade.MC1F10HP), nharmonic=1,
@@ -46,6 +49,9 @@ class SimulatedMC2000B:
                 if ch == b"\n" and not self._line:
                     continue
                 line, self._line = self._line.decode("ascii", "replace"), b""
+                if self.garble and line:
+                    self.garble -= 1
+                    line = line[1:]
                 out += line.encode() + b"\r" + self.handle(line) + b"> "
             else:
                 self._line += ch

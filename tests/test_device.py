@@ -83,3 +83,19 @@ def test_over_real_pty(tmp_path):
     finally:
         proc.terminate()
         proc.wait()
+
+
+def test_dropped_characters_are_retried(dev, sim):
+    sim.garble = 1
+    assert dev.query("blade") == p.Blade.MC1F10HP
+    assert dev.is_open
+    sim.garble = 1
+    dev.set("freq", 100)
+    assert sim.state["freq"] == 100
+
+
+def test_persistent_rejection_still_raises(dev, sim):
+    sim.garble = 5
+    with pytest.raises(p.CommandError):
+        dev.query("blade")
+    assert dev.is_open

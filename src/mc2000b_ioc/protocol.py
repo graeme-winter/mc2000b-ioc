@@ -124,8 +124,13 @@ def encode(command: str) -> bytes:
 
 
 def reply_complete(buf: bytes) -> bool:
-    """True once ``buf`` ends with the command prompt."""
-    return buf.endswith(PROMPT)
+    """True once ``buf`` ends with a prompt at the start of a line.
+
+    Requiring the line break stops a stray ``> `` inside an error message
+    (seen on firmware 4.19: ``Command error> CMD_NOT_DEFINED``) from ending
+    the read early and leaving the rest of the reply in the buffer.
+    """
+    return buf.endswith((b"\r" + PROMPT, b"\n" + PROMPT)) or buf == PROMPT
 
 
 def parse_reply(command: str, raw: bytes) -> str:

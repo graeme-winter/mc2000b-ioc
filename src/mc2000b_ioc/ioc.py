@@ -140,14 +140,27 @@ class ChopperIOC:
     # -- polling ----------------------------------------------------------
 
     def _read_all(self) -> dict[str, float | None]:
-        """Runs in a worker thread."""
-        values: dict[str, float | None] = {"blade": self.dev.query("blade")}
-        blade = p.Blade(int(values["blade"]))
+        """Runs in a worker thread.
+
+        Only I/O failures and timeouts propagate (=> lost contact). A query
+        the unit still rejects after a retry yields None for that key and is
+        recorded in ``self._poll_errors``.
+        """
+        self._poll_errors: list[str] = []
+
+        def q(key: str) -> float | None:
+            try:
+                return self.dev.query(key)
+            except p.CommandError as exc:
+                self._poll_errors.append(str(exc))
+                return None
+
+        values: dict[str, float | None] = {"blade": q("blade")}
+        blade = p.Blade(int(values["blade"])) if values["blade"] is not None else self.blade
         for key in ("enable", "freq", "phase", "ref", "output", "nharmonic",
                     "dharmonic", "intensity", "refoutfreq", "input"):
-            values[key] = self.dev.query(key)
-        values["oncycle"] = (self.dev.query("oncycle")
-                             if blade in p.ADJUSTABLE_BLADES else None)
+            values[key] = q(key)
+        values["oncycle"] = q("oncycle") if blade in p.ADJUSTABLE_BLADES else None
         return values
 
     async def poll_once(self) -> None:
@@ -158,6 +171,8 @@ class ChopperIOC:
             except Exception as exc:
                 self._disconnected(exc)
                 return
+        for msg in self._poll_errors:
+            self._error(f"poll: {msg}")
         self._publish(values)
 
     def _disconnected(self, exc: Exception) -> None:
@@ -172,7 +187,8 @@ class ChopperIOC:
 
     def _publish(self, values: dict[str, float | None]) -> None:
         self.connected.set(1)
-        self.blade = p.Blade(int(values["blade"]))
+        if values["blade"] is not None:
+            self.blade = p.Blade(int(values["blade"]))
         in_choices = p.ref_in_choices(self.blade)
         out_choices = p.ref_out_choices(self.blade)
         self.ref_in_choices.set(" ".join(p.REF_IN_LABELS[c] for c in in_choices))
@@ -180,7 +196,7 @@ class ChopperIOC:
 
         for key, value in values.items():
             rec = self.rbv[key]
-            if value is None:  # not applicable to this blade
+            if value is None:  # not applicable to this blade, or query rejected
                 rec.set(rec.get(), severity=alarm.INVALID_ALARM, alarm=alarm.SOFT_ALARM)
                 continue
             if key == "ref":
@@ -191,7 +207,7 @@ class ChopperIOC:
                 value = int(value)
             rec.set(value)
 
-        if not self._synced:
+        if not self._synced and None not in (values[k] for k in self.out if k != "oncycle"):
             for key, out in self.out.items():
                 if values.get(key) is not None:
                     out.set(self.rbv[key].get(), process=False)

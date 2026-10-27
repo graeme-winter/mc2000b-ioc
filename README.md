@@ -77,6 +77,11 @@ Behaviour:
   made while the IOC was down are not overwritten.
 * If the unit goes away every `_RBV` goes INVALID/COMM, `CONNECTED` drops,
   and the IOC keeps retrying every poll period.
+* If the unit answers a valid command with `CMD_NOT_DEFINED` the IOC sends
+  a bare CR to resync and retries once (logged as a warning). If a poll
+  query still fails, only that `_RBV` goes INVALID for one cycle and the
+  error lands in `LAST_ERROR`; the connection is kept. Only I/O errors and
+  timeouts count as lost contact.
 * `verbose=0` is forced at connect so unsolicited status text cannot
   interleave with replies.
 
@@ -99,8 +104,11 @@ unit. Check on first connection (run with `-v` to see the traffic):
 3. **REF_OUT indices for dual-frequency blades** (TARGET, OUTER, INNER, SUM,
    DIFF = 0–4) are taken from thorlabs-mc2000b; the manual's table does not
    survive PDF extraction unambiguously.
-4. **Error strings.** Only `Command error CMD_NOT_DEFINED` is documented;
-   any line starting `Command error` or `CMD_` is treated as a rejection.
+4. **Error strings.** Firmware 4.19 has been seen to reply
+   `Command error> CMD_NOT_DEFINED` (note the embedded prompt) to a valid
+   `blade?` issued just after a 1000 → 100 Hz change, i.e. it occasionally
+   drops input while busy. Hence the resync-and-retry above, and why the
+   prompt is only recognised at the start of a line.
 5. **Rejected writes in run mode** — confirm the firmware rejects (rather
    than silently ignores) blade/ref changes while running. If it ignores
    them the setpoint will stay at the requested value until the next
