@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mc2000b-ioc"
+version = "0.1.0"
+description = "pythonSoftIOC EPICS IOC for the Thorlabs MC2000B optical chopper (USB serial)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["pyserial>=3.5", "softioc>=4.5"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+mc2000b-ioc = "mc2000b_ioc.ioc:main"
+mc2000b-sim = "mc2000b_ioc.sim:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
