@@ -19,7 +19,7 @@ Layout:
 ```sh
 python -m venv .venv && . .venv/bin/activate
 pip install .            # or: pip install -e '.[dev]' && pytest
-mc2000b-ioc --port /dev/serial/by-id/usb-Thorlabs_...-if00-port0 --prefix 24IDC:CHOP
+mc2000b-ioc --port /dev/serial/by-id/usb-Thorlabs_...-if00-port0 --prefix 24IDC:CHOP:
 ```
 
 The unit enumerates as a USB-serial device (the manual calls it "RS232
@@ -32,7 +32,7 @@ Without hardware:
 
 ```sh
 mc2000b-sim --link /tmp/chop &
-mc2000b-ioc --port /tmp/chop --prefix TEST:CHOP
+mc2000b-ioc --port /tmp/chop --prefix TEST:CHOP:
 ```
 
 Options: `--poll` (readback period, default 1 s), `--timeout` (per-command
@@ -40,7 +40,7 @@ reply timeout, default 1 s), `-v` (debug logging, shows all serial traffic).
 
 ## PVs
 
-All under `$(PREFIX):`. Writable parameters are a setpoint plus `_RBV`.
+All under `$(PREFIX)`, which is used verbatim (include the trailing `:`). Writable parameters are a setpoint plus `_RBV`.
 
 | PV | Type | Device command | Notes |
 | --- | --- | --- | --- |

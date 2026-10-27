@@ -207,7 +207,8 @@ def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(description="EPICS IOC for the Thorlabs MC2000B optical chopper")
     ap.add_argument("--port", required=True,
                     help="serial device, ideally /dev/serial/by-id/... (any pyserial URL works)")
-    ap.add_argument("--prefix", required=True, help="PV prefix, e.g. 24IDC:CHOP (':' is appended)")
+    ap.add_argument("--prefix", required=True,
+                    help="PV prefix, used verbatim, e.g. 24IDC:CHOP: (include the trailing ':')")
     ap.add_argument("--poll", type=float, default=1.0, help="readback poll period / s")
     ap.add_argument("--timeout", type=float, default=1.0, help="per-command reply timeout / s")
     ap.add_argument("--no-shell", action="store_true", help="run without the interactive shell")
@@ -218,7 +219,8 @@ def main(argv: list[str] | None = None) -> None:
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
     dispatcher = asyncio_dispatcher.AsyncioDispatcher()
-    builder.SetDeviceName(args.prefix)
+    builder.SetSeparator("")
+    builder.SetPrefix(args.prefix)
     ioc = ChopperIOC(MC2000B(args.port, timeout=args.timeout), args.poll)
     builder.LoadDatabase()
     softioc.iocInit(dispatcher)
